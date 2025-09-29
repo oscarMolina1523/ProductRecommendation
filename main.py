@@ -28,13 +28,13 @@ df = pd.DataFrame({
 })
 
 # Guardar en CSV
-df.to_csv("ratings.csv", index=False)
+df.to_csv("data/ratings.csv", index=False)
 
 print("✅ Dataset generado y guardado en ratings.csv")
 print(df.head())
 
 # Leer el dataset
-df = pd.read_csv("ratings.csv")
+df = pd.read_csv("data/ratings.csv")
 
 # Definir rango de ratings
 reader = Reader(rating_scale=(1, 5))
