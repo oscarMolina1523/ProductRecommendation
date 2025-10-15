@@ -1,4 +1,5 @@
 numpy 
 pandas
-collections
 surprise 
+matplotlib
+seaborn
