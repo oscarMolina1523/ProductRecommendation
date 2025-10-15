@@ -10,9 +10,9 @@ import seaborn as sns
 np.random.seed(42)
 
 # Parámetros del dataset
-n_users = 20       # número de usuarios
-n_products = 15    # número de productos
-n_ratings = 100    # cantidad de ratings
+n_users = 300       # número de usuarios
+n_products = 500    # número de productos
+n_ratings = 6500    # cantidad de ratings
 
 # Generar datos aleatorios
 user_ids = np.random.randint(1, n_users+1, n_ratings)
@@ -107,26 +107,31 @@ rec_counts = pd.Series(recommended_products).value_counts()
 rec_df = rec_counts.reset_index()
 rec_df.columns = ['ProductID', 'Frecuencia']
 rec_df = rec_df.sort_values(by='Frecuencia', ascending=False)
-
-plt.figure(figsize=(12, 7))
+rec_df_top = rec_df.head(20) 
+plt.figure(figsize=(14, 7))
 sns.barplot(
     x='ProductID',
     y='Frecuencia',
-    data=rec_df,
+    data=rec_df_top,
     palette='magma', 
-    order=rec_df['ProductID']
+    order=rec_df_top['ProductID']
 )
 
 plt.title('Frecuencia de Aparición de Productos en el TOP-3 de Recomendaciones', fontsize=18, pad=20)
 plt.xlabel('ID del Producto', fontsize=14)
 plt.ylabel('Número de Veces Recomendado', fontsize=14)
 
+plt.xticks(
+    rotation=45, # Rota las etiquetas 45 grados
+    ha='right'   # Alinea las etiquetas a la derecha para que no se choquen
+)
+plt.gca().set_xticklabels(rec_df_top['ProductID'].astype(int))
 # Agregar etiquetas de frecuencia sobre las barras
-for index, row in rec_df.iterrows():
-    plt.text(index, row['Frecuencia'] + 0.1, row['Frecuencia'], color='black', ha="center", fontsize=12)
+for index, row in rec_df_top.iterrows():
+    plt.text(rec_df_top.index.get_loc(index), row['Frecuencia'] + 0.1, row['Frecuencia'], color='black', ha="center", fontsize=12)
 
-plt.xticks(rec_df.index, rec_df['ProductID'].astype(int))
 plt.grid(axis='y', linestyle='--', alpha=0.6)
+plt.tight_layout()
 plt.show()
 
 # ---
