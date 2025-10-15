@@ -6,22 +6,22 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# Fijar semilla para reproducibilidad
+# Fijamos una semilla para reproducibilidad y asi nos genere siempre los mismos datos
 np.random.seed(42)
 
-# Parámetros del dataset
+# Parámetros para nuestro dataset
 n_users = 300       # número de usuarios
 n_products = 500    # número de productos
 n_ratings = 6500    # cantidad de ratings
 
-# Generar datos aleatorios
+# Generamos datos aleatorios
 user_ids = np.random.randint(1, n_users+1, n_ratings)
 product_ids = np.random.randint(1, n_products+1, n_ratings)
 ratings = np.random.randint(1, 6, n_ratings)  # ratings entre 1 y 5
 timestamps = np.random.randint(1609459200, 1640995200, n_ratings)  
-# (fechas entre 2021-01-01 y 2022-01-01 en formato UNIX)
+# (fechas entre 2021-01-01 y 2022-01-01) para simular que son viejos
 
-# Crear DataFrame
+# Creamos DataFrame
 df = pd.DataFrame({
     "UserID": user_ids,
     "ProductID": product_ids,
@@ -29,31 +29,31 @@ df = pd.DataFrame({
     "Timestamp": timestamps
 })
 
-# Guardar en CSV
+# Guardamos en CSV
 df.to_csv("data/ratings.csv", index=False)
 
-print("✅ Dataset generado y guardado en ratings.csv")
+print("Dataset generado y guardado en ratings.csv")
 print(df.head())
 
-# Leer el dataset
+# Leemos el dataset
 df = pd.read_csv("data/ratings.csv")
 
-# Definir rango de ratings
+# Definir rango de ratings (entre 1 y 5 vamos a usar)
 reader = Reader(rating_scale=(1, 5))
 data = Dataset.load_from_df(df[['UserID', 'ProductID', 'Rating']], reader)
 
-# Separar train/test
+# Separar entre entrenamiento y prueba
 trainset, testset = train_test_split(data, test_size=0.2, random_state=42)
 
 # Modelo SVD
 algo = SVD()
 algo.fit(trainset)
 
-# Evaluar
+# Evaluamos
 predictions = algo.test(testset)
 print("RMSE:", accuracy.rmse(predictions))
 
-
+#generamos un top de recomendaciones por usuario
 def get_top_n(predictions, n=5):
     '''Devuelve top-N recomendaciones por usuario'''
     top_n = defaultdict(list)
@@ -80,8 +80,8 @@ print("\n--- Top-3 Recomendaciones por Usuario ---")
 for uid, user_ratings in top_n.items():
     print(f"Usuario {uid} → Recomendaciones: {[iid for (iid, _) in user_ratings]}")
 
-## 📈 Gráfico 1: Distribución de Ratings Originales
-# Muestra cómo están distribuidos los ratings en tu dataset inicial.
+## Gráfico 1: Distribución de Ratings Originales
+# Muestra cómo están distribuidos los ratings en el dataset inicial.
 
 plt.figure(figsize=(8, 5))
 sns.countplot(x='Rating', data=df, palette='viridis')
@@ -93,7 +93,7 @@ plt.show()
 
 
 
-## 📊 Gráfico 2: Frecuencia de Productos Recomendados (Top-3)
+## Gráfico 2: Frecuencia de Productos Recomendados (Top-3)
 # Muestra qué productos son los más populares en las recomendaciones.
 
 # 1. Extraer todos los IDs de productos recomendados
@@ -134,9 +134,8 @@ plt.grid(axis='y', linestyle='--', alpha=0.6)
 plt.tight_layout()
 plt.show()
 
-# ---
 
-## 🔥 Gráfico 3: Matriz de Ratings Estimados (Heatmap)
+## Gráfico 3: Matriz de Ratings Estimados
 # Muestra los ratings estimados reales que usa el modelo para decidir el Top-3 (ejemplo de 5 usuarios).
 
 # 1. Preparar datos para 5 usuarios de ejemplo
