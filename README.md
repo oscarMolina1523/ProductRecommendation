@@ -31,9 +31,20 @@
 <h2 align="left">Instalación</h2>
 
 ###
+```bash
 
-<p align="left">## Instalación y uso  <br>1. Clona el repositorio:  <br>   ```bash<br>   git clone https://github.com/oscarMolina1523/ProductRecommendation.git<br>   cd ProductRecommendation<br>pip install -r requirements.txt<br>python main.py</p>
+#Clona el repositorio: 
+git clone https://github.com/oscarMolina1523/ProductRecommendation.git
 
+#Navega hacia la carpeta
+cd ProductRecommendation
+
+#Instala las dependencias
+pip install -r requirements.txt
+
+#Correr el proyecto en local
+python main.py
+```
 ###
 
 <h2 align="left">Resultados esperados</h2>
