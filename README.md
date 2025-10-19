@@ -8,7 +8,7 @@
 
 ###
 
-<p align="left">Este proyecto implementa un sistema de recomendación de productos para una tienda online, utilizando filtrado colaborativo basado en el historial de usuarios. El objetivo es generar recomendaciones personalizadas (“top-N productos”) basadas en los ratings que los usuarios le han dado a productos.</p>
+<p align="left">Este proyecto implementa un <strong>sistema de recomendación de productos para una tienda online</strong>, utilizando <strong>filtrado colaborativo basado en el historial de usuarios</strong>. El objetivo es generar recomendaciones personalizadas <strong>(“top-N productos”)</strong> basadas en los ratings que los usuarios le han dado a productos.</p>
 
 ###
 
