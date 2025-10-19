@@ -16,7 +16,7 @@
 
 ###
 
-<p align="left">-Dataset con columnas: `UserID`, `ProductID`, `Rating`, `Timestamp`.  <br>- La tienda desea sugerir al usuario productos que posiblemente le gusten, basándose en su comportamiento pasado y en el de otros usuarios.  <br>- Los métodos utilizados incluyen: factorización de matrices (SVD) y medidas de precisión como RMSE y ranking top-N.</p>
+<p align="left">-Dataset con columnas: "UserID", "ProductID", "Rating", "Timestamp".  <br>- La tienda desea sugerir al usuario productos que posiblemente le gusten, basándose en su comportamiento pasado y en el de otros usuarios.  <br>- Los métodos utilizados incluyen: factorización de matrices (SVD) y medidas de precisión como RMSE y ranking top-N.</p>
 
 ###
 
