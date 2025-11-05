@@ -163,3 +163,35 @@ plt.title('Ratings Estimados del TOP-3 Recomendado para 5 Usuarios', fontsize=16
 plt.ylabel('ID de Usuario', fontsize=12)
 plt.xlabel('ID de Producto Recomendado', fontsize=12)
 plt.show()
+
+
+## Gráfico 4: Recomendaciones de una muestra de 5 usuarios
+# Visualiza qué productos fueron recomendados a 5 usuarios seleccionados
+
+# 1. Seleccionar una muestra de 5 usuarios
+sample_users = list(top_n.keys())[:5]
+
+# 2. Crear una lista con las recomendaciones de cada usuario
+sample_recommendations = []
+for uid in sample_users:
+    for iid, est in top_n[uid]:
+        sample_recommendations.append({"UserID": uid, "ProductID": iid, "EstimatedRating": est})
+
+sample_df = pd.DataFrame(sample_recommendations)
+
+# 3. Graficar
+plt.figure(figsize=(10, 6))
+sns.barplot(
+    x="UserID",
+    y="EstimatedRating",
+    hue="ProductID",
+    data=sample_df,
+    palette="Set2"
+)
+
+plt.title("Top-3 de Productos Recomendados por Usuario (Muestra de 5)", fontsize=16)
+plt.xlabel("ID de Usuario", fontsize=12)
+plt.ylabel("Rating Estimado", fontsize=12)
+plt.legend(title="ID Producto", bbox_to_anchor=(1.05, 1), loc="upper left")
+plt.tight_layout()
+plt.show()
