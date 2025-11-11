@@ -195,3 +195,89 @@ plt.ylabel("Rating Estimado", fontsize=12)
 plt.legend(title="ID Producto", bbox_to_anchor=(1.05, 1), loc="upper left")
 plt.tight_layout()
 plt.show()
+
+## Gráfico 5: Red de Recomendaciones Usuario–Producto
+# Visualiza todos los usuarios (300) conectados con los productos recomendados (Top-3 por usuario)
+
+import networkx as nx
+
+# 1. Construir los enlaces de la red
+edges = []
+for uid, user_ratings in top_n.items():
+    for iid, est in user_ratings:
+        edges.append((f"U{uid}", f"P{iid}"))  # prefijos para distinguir nodos
+
+# 2. Crear el grafo bipartito
+G = nx.Graph()
+G.add_edges_from(edges)
+
+# 3. Separar nodos por tipo (usuarios vs productos)
+user_nodes = [n for n in G.nodes if n.startswith("U")]
+product_nodes = [n for n in G.nodes if n.startswith("P")]
+
+# 4. Asignar posiciones para visualización
+pos = {}
+pos.update((n, (1, i)) for i, n in enumerate(user_nodes))     # Usuarios en una columna
+pos.update((n, (2, i)) for i, n in enumerate(product_nodes))  # Productos en otra
+
+# 5. Crear la figura
+plt.figure(figsize=(14, 16))
+plt.title("Red de Recomendaciones Usuario–Producto (Top-3 por Usuario)", fontsize=18, pad=20)
+
+# Dibujar nodos y aristas
+nx.draw_networkx_edges(G, pos, alpha=0.2)
+
+# Nodos de usuarios
+nx.draw_networkx_nodes(G, pos, nodelist=user_nodes, node_color="skyblue", node_size=20, label="Usuarios")
+
+# Nodos de productos
+nx.draw_networkx_nodes(G, pos, nodelist=product_nodes, node_color="salmon", node_size=20, label="Productos")
+
+# 6. Leyenda y estilo
+plt.legend(scatterpoints=1, loc="upper right", fontsize=12)
+plt.axis("off")
+plt.tight_layout()
+plt.show()
+
+# Contar cuántos usuarios recibieron cada producto en top 3
+product_counts = pd.Series([iid for _, ur in top_n.items() for iid, _ in ur]).value_counts().head(20)
+plt.figure(figsize=(14,6))
+sns.barplot(x=product_counts.index, y=product_counts.values, palette="magma")
+plt.title("Top 20 Productos más Recomendados")
+plt.xlabel("ID Producto")
+plt.ylabel("Cantidad de Usuarios")
+plt.xticks(rotation=45)
+plt.show()
+
+## Gráfico 4: Heatmap de Recomendaciones para múltiples usuarios
+# Seleccionamos los 50 primeros usuarios para que sea legible
+sample_users = list(top_n.keys())[:50]
+
+# Identificar los productos más recomendados en todo el top_n
+top_products = pd.Series([iid for _, ur in top_n.items() for iid, _ in ur]).value_counts().head(20).index
+
+# Construir matriz: filas=usuarios, columnas=productos, valor=rating estimado
+heatmap_data = []
+for uid in sample_users:
+    row = []
+    user_dict = dict(top_n[uid])
+    for pid in top_products:
+        row.append(user_dict.get(pid, 0))  # 0 si no está recomendado
+    heatmap_data.append(row)
+
+heatmap_df = pd.DataFrame(heatmap_data, index=sample_users, columns=top_products)
+
+plt.figure(figsize=(16, 10))
+sns.heatmap(
+    heatmap_df,
+    annot=True,       # Mostrar valores dentro de celdas
+    fmt=".1f",
+    cmap="YlGnBu",
+    linewidths=0.5,
+    linecolor='black'
+)
+plt.title("Heatmap: Top-3 Productos Recomendados por Usuario", fontsize=16)
+plt.xlabel("ID Producto", fontsize=12)
+plt.ylabel("ID Usuario", fontsize=12)
+plt.tight_layout()
+plt.show()

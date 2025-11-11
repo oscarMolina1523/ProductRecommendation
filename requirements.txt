@@ -3,3 +3,4 @@ pandas
 surprise 
 matplotlib
 seaborn
+networkx
