@@ -5,35 +5,76 @@ from surprise.model_selection import train_test_split
 from collections import defaultdict
 import matplotlib.pyplot as plt
 import seaborn as sns
+from faker import Faker
 
-# Fijamos una semilla para reproducibilidad y asi nos genere siempre los mismos datos
+# # Fijamos una semilla para reproducibilidad y asi nos genere siempre los mismos datos
+# np.random.seed(42)
+
+# # Parámetros para nuestro dataset
+# n_users = 300       # número de usuarios
+# n_products = 500    # número de productos
+# n_ratings = 6500    # cantidad de ratings
+
+# # Generamos datos aleatorios
+# user_ids = np.random.randint(1, n_users+1, n_ratings)
+# product_ids = np.random.randint(1, n_products+1, n_ratings)
+# ratings = np.random.randint(1, 6, n_ratings)  # ratings entre 1 y 5
+# timestamps = np.random.randint(1609459200, 1640995200, n_ratings)  
+# # (fechas entre 2021-01-01 y 2022-01-01) para simular que son viejos
+
+# # Creamos DataFrame
+# df = pd.DataFrame({
+#     "UserID": user_ids,
+#     "ProductID": product_ids,
+#     "Rating": ratings,
+#     "Timestamp": timestamps
+# })
+
+# # Guardamos en CSV
+# df.to_csv("data/ratings.csv", index=False)
+
+# print("Dataset generado y guardado en ratings.csv")
+# print(df.head())
+
+
+
+fake = Faker()
+
 np.random.seed(42)
 
-# Parámetros para nuestro dataset
-n_users = 300       # número de usuarios
-n_products = 500    # número de productos
-n_ratings = 6500    # cantidad de ratings
+# Parámetros del dataset
+n_users = 300       
+n_products = 500    
+n_ratings = 6500    
+
+# Generar NOMBRES DE USUARIOS
+user_names = {i: fake.name() for i in range(1, n_users+1)}
+
+# Generar NOMBRES DE PELÍCULAS
+product_names = {i: fake.sentence(nb_words=3).replace(".", "") 
+                 for i in range(1, n_products+1)}
 
 # Generamos datos aleatorios
 user_ids = np.random.randint(1, n_users+1, n_ratings)
 product_ids = np.random.randint(1, n_products+1, n_ratings)
-ratings = np.random.randint(1, 6, n_ratings)  # ratings entre 1 y 5
-timestamps = np.random.randint(1609459200, 1640995200, n_ratings)  
-# (fechas entre 2021-01-01 y 2022-01-01) para simular que son viejos
+ratings = np.random.randint(1, 6, n_ratings)
+timestamps = np.random.randint(1609459200, 1640995200, n_ratings)
 
-# Creamos DataFrame
+# Crear DataFrame con NOMBRES incluidos
 df = pd.DataFrame({
     "UserID": user_ids,
+    "UserName": [user_names[uid] for uid in user_ids],
     "ProductID": product_ids,
+    "ProductName": [product_names[iid] for iid in product_ids],
     "Rating": ratings,
     "Timestamp": timestamps
 })
 
-# Guardamos en CSV
+# Guardamos
 df.to_csv("data/ratings.csv", index=False)
-
-print("Dataset generado y guardado en ratings.csv")
+print("Dataset generado con nombres reales:")
 print(df.head())
+
 
 # Leemos el dataset
 df = pd.read_csv("data/ratings.csv")
