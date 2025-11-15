@@ -6,61 +6,31 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import seaborn as sns
 from faker import Faker
-
-# # Fijamos una semilla para reproducibilidad y asi nos genere siempre los mismos datos
-# np.random.seed(42)
-
-# # Parámetros para nuestro dataset
-# n_users = 300       # número de usuarios
-# n_products = 500    # número de productos
-# n_ratings = 6500    # cantidad de ratings
-
-# # Generamos datos aleatorios
-# user_ids = np.random.randint(1, n_users+1, n_ratings)
-# product_ids = np.random.randint(1, n_products+1, n_ratings)
-# ratings = np.random.randint(1, 6, n_ratings)  # ratings entre 1 y 5
-# timestamps = np.random.randint(1609459200, 1640995200, n_ratings)  
-# # (fechas entre 2021-01-01 y 2022-01-01) para simular que son viejos
-
-# # Creamos DataFrame
-# df = pd.DataFrame({
-#     "UserID": user_ids,
-#     "ProductID": product_ids,
-#     "Rating": ratings,
-#     "Timestamp": timestamps
-# })
-
-# # Guardamos en CSV
-# df.to_csv("data/ratings.csv", index=False)
-
-# print("Dataset generado y guardado en ratings.csv")
-# print(df.head())
+import networkx as nx
 
 
-
-fake = Faker()
-
-np.random.seed(42)
+fake = Faker()      #generador de nombres falsos
+np.random.seed(42)  #semilla
 
 # Parámetros del dataset
-n_users = 300       
-n_products = 500    
-n_ratings = 6500    
+n_users = 300       #cantidad de usuarios
+n_products = 500    #cantidad de productos en nuestro caso peliculas
+n_ratings = 6500    #cantidad de ratings que queremos
 
 # Generar NOMBRES DE USUARIOS
 user_names = {i: fake.name() for i in range(1, n_users+1)}
 
-# Generar NOMBRES DE PELÍCULAS
+# Generar NOMBRES DE PRODUCTOS (nuestras peliculas)
 product_names = {i: fake.sentence(nb_words=3).replace(".", "") 
                  for i in range(1, n_products+1)}
 
-# Generamos datos aleatorios
+# Generamos datos aleatorios para los ids
 user_ids = np.random.randint(1, n_users+1, n_ratings)
 product_ids = np.random.randint(1, n_products+1, n_ratings)
 ratings = np.random.randint(1, 6, n_ratings)
 timestamps = np.random.randint(1609459200, 1640995200, n_ratings)
 
-# Crear DataFrame con NOMBRES incluidos
+# Crear DataFrame con usernames incluidos
 df = pd.DataFrame({
     "UserID": user_ids,
     "UserName": [user_names[uid] for uid in user_ids],
@@ -70,255 +40,269 @@ df = pd.DataFrame({
     "Timestamp": timestamps
 })
 
-# Guardamos
+#mandamos a crear en un csv la data procesada
 df.to_csv("data/ratings.csv", index=False)
+
 print("Dataset generado con nombres reales:")
 print(df.head())
 
 
-# Leemos el dataset
+#leemos los datos del csv procesado
 df = pd.read_csv("data/ratings.csv")
 
-# Definir rango de ratings (entre 1 y 5 vamos a usar)
+#definimos un rango de ratings, nosotros usamos del 1 al 5 
 reader = Reader(rating_scale=(1, 5))
 data = Dataset.load_from_df(df[['UserID', 'ProductID', 'Rating']], reader)
 
-# Separar entre entrenamiento y prueba
+#separamos entre entrenamiento y pruebas
 trainset, testset = train_test_split(data, test_size=0.2, random_state=42)
 
-# Modelo SVD
+#CREAMOS UN MODELO DE RECOMENDACIÓN SVD 
 algo = SVD()
+
+#ponemos al modelo a aprender con el 80% de los datos
+#es decir el modelo actualiza gradualmente sus parámetros internos para reducir el error.
+#Lo hace miles de veces hasta que el error es lo más pequeño posible.
 algo.fit(trainset)
 
-# Evaluamos
+#una vez entrenado ahora lo probamos con el 20% de datos que no conoce
 predictions = algo.test(testset)
+#RMSE : error cuadratico medio entre mas bajo mejor
 print("RMSE:", accuracy.rmse(predictions))
 
-#generamos un top de recomendaciones por usuario
-def get_top_n(predictions, n=5):
-    '''Devuelve top-N recomendaciones por usuario'''
-    top_n = defaultdict(list)
+# Crear mapeos para usar en lo graficos y asi no mostrar los ids
+user_id_to_name = df.set_index("UserID")["UserName"].to_dict()
+product_id_to_name = df.set_index("ProductID")["ProductName"].to_dict()
+
+
+#GENERAR TOP-N (3) RECOMENDACIONES 
+def get_top_n(predictions, n=3):
+    top_n = defaultdict(list) #creamos un diccionario cada usuario tendra una lista de pelis
+    # Iteramos sobre todas las predicciones
+    # Cada predicción tiene: uid=usuario, iid=producto, true_r=rating real, est=rating estimado, _=detalles internos
     for uid, iid, true_r, est, _ in predictions:
-        top_n[uid].append((iid, est))
+        # Agregamos a la lista del usuario la tupla (ProductoID, Rating Estimado)
+        top_n[int(uid)].append((int(iid), est))
+
+    # Para cada usuario, ordenamos los productos por rating estimado de mayor a menor
     for uid, user_ratings in top_n.items():
         user_ratings.sort(key=lambda x: x[1], reverse=True)
+        # Nos quedamos solo con los n mejores productos (top-N)
         top_n[uid] = user_ratings[:n]
+
+    # Devolvemos el diccionario con los top-N por usuario
     return top_n
 
-# Crear predicciones para todo el dataset
-all_predictions = []
-all_user_ids = df['UserID'].unique()
-all_item_ids = df['ProductID'].unique()
+all_predictions = []                   # Lista vacía para guardar todas las predicciones
+all_user_ids = df['UserID'].unique()   # Obtenemos todos los IDs de usuario únicos
+all_item_ids = df['ProductID'].unique()# Obtenemos todos los IDs de productos únicos
 
+# Recorremos cada usuario
 for uid in all_user_ids:
+    # Obtenemos los productos que el usuario ya calificó
     items_rated = df[df['UserID']==uid]['ProductID'].values
+    # Seleccionamos solo los productos que el usuario NO ha calificado
     items_to_predict = [iid for iid in all_item_ids if iid not in items_rated]
+    
+    # Generamos predicciones para cada producto que aún no ha visto el usuario
     for iid in items_to_predict:
+        # Se usa el modelo entrenado 'algo' para predecir el rating estimado
         all_predictions.append(algo.predict(uid, iid))
 
-top_n = get_top_n(all_predictions, n=3)
-print("\n--- Top-3 Recomendaciones por Usuario ---")
-for uid, user_ratings in top_n.items():
-    print(f"Usuario {uid} → Recomendaciones: {[iid for (iid, _) in user_ratings]}")
 
-## Gráfico 1: Distribución de Ratings Originales
-# Muestra cómo están distribuidos los ratings en el dataset inicial.
+top_n = get_top_n(all_predictions, n=3)  
+
+# G R Á F I C O   1 
+# Distribución de ratings 
 
 plt.figure(figsize=(8, 5))
 sns.countplot(x='Rating', data=df, palette='viridis')
 plt.title('Distribución de Ratings Asignados (Dataset Inicial)', fontsize=16)
 plt.xlabel('Rating', fontsize=12)
 plt.ylabel('Cantidad de Ratings', fontsize=12)
-plt.xticks(ticks=[0, 1, 2, 3, 4], labels=['1', '2', '3', '4', '5'])
 plt.show()
 
+# G R Á F I C O   2 
+# Frecuencia de productos recomendados
 
-
-## Gráfico 2: Frecuencia de Productos Recomendados (Top-3)
-# Muestra qué productos son los más populares en las recomendaciones.
-
-# 1. Extraer todos los IDs de productos recomendados
 recommended_products = []
 for uid, user_ratings in top_n.items():
     for iid, _ in user_ratings:
         recommended_products.append(iid)
 
-# 2. Contar la frecuencia y preparar el DataFrame para el gráfico
-rec_counts = pd.Series(recommended_products).value_counts()
-rec_df = rec_counts.reset_index()
-rec_df.columns = ['ProductID', 'Frecuencia']
-rec_df = rec_df.sort_values(by='Frecuencia', ascending=False)
-rec_df_top = rec_df.head(20) 
+rec_df = pd.Series(recommended_products).value_counts().reset_index()
+rec_df.columns = ["ProductID", "Frecuencia"]
+rec_df["ProductName"] = rec_df["ProductID"].map(product_id_to_name)
+
+rec_df_top = rec_df.head(20)
+
 plt.figure(figsize=(14, 7))
 sns.barplot(
-    x='ProductID',
-    y='Frecuencia',
+    x="ProductName",
+    y="Frecuencia",
     data=rec_df_top,
-    palette='magma', 
-    order=rec_df_top['ProductID']
+    palette="magma"
 )
-
-plt.title('Frecuencia de Aparición de Productos en el TOP-3 de Recomendaciones', fontsize=18, pad=20)
-plt.xlabel('ID del Producto', fontsize=14)
-plt.ylabel('Número de Veces Recomendado', fontsize=14)
-
-plt.xticks(
-    rotation=45, # Rota las etiquetas 45 grados
-    ha='right'   # Alinea las etiquetas a la derecha para que no se choquen
-)
-plt.gca().set_xticklabels(rec_df_top['ProductID'].astype(int))
-# Agregar etiquetas de frecuencia sobre las barras
-for index, row in rec_df_top.iterrows():
-    plt.text(rec_df_top.index.get_loc(index), row['Frecuencia'] + 0.1, row['Frecuencia'], color='black', ha="center", fontsize=12)
-
-plt.grid(axis='y', linestyle='--', alpha=0.6)
+plt.title("Frecuencia de Películas en el Top-3", fontsize=18)
+plt.xlabel("Película")
+plt.ylabel("Frecuencia")
+plt.xticks(rotation=45, ha="right")
 plt.tight_layout()
 plt.show()
 
+# G R Á F I C O   3
+# Matriz de ratings estimados (heatmap)
 
-## Gráfico 3: Matriz de Ratings Estimados
-# Muestra los ratings estimados reales que usa el modelo para decidir el Top-3 (ejemplo de 5 usuarios).
-
-# 1. Preparar datos para 5 usuarios de ejemplo
 sample_uids = list(top_n.keys())[:5]
 sample_predictions_data = {}
-for uid in sample_uids:
-    # Mapea ProductID a Rating Estimado (est)
-    sample_predictions_data[uid] = {iid: est for iid, est in top_n[uid]}
 
-# 2. Crear y limpiar el DataFrame
-pred_df = pd.DataFrame.from_dict(sample_predictions_data, orient='index').fillna(0)
-pred_df.index.name = "UserID"
-pred_df = pred_df.sort_index(axis=1) # Ordenar por ID de producto
+for uid in sample_uids:
+    sample_predictions_data[user_id_to_name[uid]] = {
+        product_id_to_name[iid]: est for iid, est in top_n[uid]
+    }
+
+pred_df = pd.DataFrame.from_dict(sample_predictions_data, orient="index").fillna(0)
 
 plt.figure(figsize=(10, 8))
-sns.heatmap(
-    pred_df,
-    annot=True,        # Muestra el valor del rating estimado
-    cmap="YlGnBu",     # Escala de color
-    fmt=".2f",         # Formato de dos decimales
-    linewidths=.5,
-    linecolor='black'
-)
-plt.title('Ratings Estimados del TOP-3 Recomendado para 5 Usuarios', fontsize=16)
-plt.ylabel('ID de Usuario', fontsize=12)
-plt.xlabel('ID de Producto Recomendado', fontsize=12)
-plt.show()
+sns.heatmap(pred_df, annot=True, cmap="YlGnBu", fmt=".2f", linewidths=.5)
+plt.title("Ratings Estimados del TOP-3 ", fontsize=16)
+plt.xlabel("Película")
+plt.ylabel("Usuario")
 
+plt.xticks(rotation=45)   # gira nombres de películas
+plt.yticks(rotation=15)   # gira un poco los usuarios
 
-## Gráfico 4: Recomendaciones de una muestra de 5 usuarios
-# Visualiza qué productos fueron recomendados a 5 usuarios seleccionados
-
-# 1. Seleccionar una muestra de 5 usuarios
-sample_users = list(top_n.keys())[:5]
-
-# 2. Crear una lista con las recomendaciones de cada usuario
-sample_recommendations = []
-for uid in sample_users:
-    for iid, est in top_n[uid]:
-        sample_recommendations.append({"UserID": uid, "ProductID": iid, "EstimatedRating": est})
-
-sample_df = pd.DataFrame(sample_recommendations)
-
-# 3. Graficar
-plt.figure(figsize=(10, 6))
-sns.barplot(
-    x="UserID",
-    y="EstimatedRating",
-    hue="ProductID",
-    data=sample_df,
-    palette="Set2"
-)
-
-plt.title("Top-3 de Productos Recomendados por Usuario (Muestra de 5)", fontsize=16)
-plt.xlabel("ID de Usuario", fontsize=12)
-plt.ylabel("Rating Estimado", fontsize=12)
-plt.legend(title="ID Producto", bbox_to_anchor=(1.05, 1), loc="upper left")
 plt.tight_layout()
+
 plt.show()
 
-## Gráfico 5: Red de Recomendaciones Usuario–Producto
-# Visualiza todos los usuarios (300) conectados con los productos recomendados (Top-3 por usuario)
+#G R Á F I C O   4 
+# Barras: Top-3 por usuario
 
-import networkx as nx
+# sample_users = list(top_n.keys())[:5]
 
-# 1. Construir los enlaces de la red
-edges = []
-for uid, user_ratings in top_n.items():
-    for iid, est in user_ratings:
-        edges.append((f"U{uid}", f"P{iid}"))  # prefijos para distinguir nodos
+# sample_recommendations = []
+# for uid in sample_users:
+#     for iid, est in top_n[uid]:
+#         sample_recommendations.append({
+#             "UserName": user_id_to_name[uid],
+#             "ProductName": product_id_to_name[iid],
+#             "EstimatedRating": est
+#         })
 
-# 2. Crear el grafo bipartito
-G = nx.Graph()
-G.add_edges_from(edges)
+# sample_df = pd.DataFrame(sample_recommendations)
 
-# 3. Separar nodos por tipo (usuarios vs productos)
-user_nodes = [n for n in G.nodes if n.startswith("U")]
-product_nodes = [n for n in G.nodes if n.startswith("P")]
+# plt.figure(figsize=(12, 6))
+# sns.barplot(
+#     x="UserName",
+#     y="EstimatedRating",
+#     hue="ProductName",
+#     data=sample_df,
+#     palette="Set2"
+# )
+# plt.title("Top-3 Películas Recomendadas por Usuario", fontsize=16)
+# plt.xlabel("Usuario")
+# plt.ylabel("Rating Estimado")
+# plt.xticks(rotation=45, ha="right")
+# plt.legend(title="Película", bbox_to_anchor=(1.05, 1), loc="upper left")
+# plt.tight_layout()
+# plt.show()
 
-# 4. Asignar posiciones para visualización
-pos = {}
-pos.update((n, (1, i)) for i, n in enumerate(user_nodes))     # Usuarios en una columna
-pos.update((n, (2, i)) for i, n in enumerate(product_nodes))  # Productos en otra
+#G R Á F I C O   5 
+# Heatmap grande con 50 usuarios × 20 películas
 
-# 5. Crear la figura
-plt.figure(figsize=(14, 16))
-plt.title("Red de Recomendaciones Usuario–Producto (Top-3 por Usuario)", fontsize=18, pad=20)
-
-# Dibujar nodos y aristas
-nx.draw_networkx_edges(G, pos, alpha=0.2)
-
-# Nodos de usuarios
-nx.draw_networkx_nodes(G, pos, nodelist=user_nodes, node_color="skyblue", node_size=20, label="Usuarios")
-
-# Nodos de productos
-nx.draw_networkx_nodes(G, pos, nodelist=product_nodes, node_color="salmon", node_size=20, label="Productos")
-
-# 6. Leyenda y estilo
-plt.legend(scatterpoints=1, loc="upper right", fontsize=12)
-plt.axis("off")
-plt.tight_layout()
-plt.show()
-
-# Contar cuántos usuarios recibieron cada producto en top 3
-product_counts = pd.Series([iid for _, ur in top_n.items() for iid, _ in ur]).value_counts().head(20)
-plt.figure(figsize=(14,6))
-sns.barplot(x=product_counts.index, y=product_counts.values, palette="magma")
-plt.title("Top 20 Productos más Recomendados")
-plt.xlabel("ID Producto")
-plt.ylabel("Cantidad de Usuarios")
-plt.xticks(rotation=45)
-plt.show()
-
-## Gráfico 4: Heatmap de Recomendaciones para múltiples usuarios
-# Seleccionamos los 50 primeros usuarios para que sea legible
 sample_users = list(top_n.keys())[:50]
+top_products = rec_df["ProductID"].head(20).tolist()
 
-# Identificar los productos más recomendados en todo el top_n
-top_products = pd.Series([iid for _, ur in top_n.items() for iid, _ in ur]).value_counts().head(20).index
-
-# Construir matriz: filas=usuarios, columnas=productos, valor=rating estimado
 heatmap_data = []
 for uid in sample_users:
     row = []
     user_dict = dict(top_n[uid])
     for pid in top_products:
-        row.append(user_dict.get(pid, 0))  # 0 si no está recomendado
+        row.append(user_dict.get(pid, 0))
     heatmap_data.append(row)
 
-heatmap_df = pd.DataFrame(heatmap_data, index=sample_users, columns=top_products)
+heatmap_df = pd.DataFrame(
+    heatmap_data,
+    index=[user_id_to_name[u] for u in sample_users],
+    columns=[product_id_to_name[p] for p in top_products]
+)
 
 plt.figure(figsize=(16, 10))
 sns.heatmap(
     heatmap_df,
-    annot=True,       # Mostrar valores dentro de celdas
+    annot=True,
     fmt=".1f",
     cmap="YlGnBu",
     linewidths=0.5,
     linecolor='black'
 )
-plt.title("Heatmap: Top-3 Productos Recomendados por Usuario", fontsize=16)
-plt.xlabel("ID Producto", fontsize=12)
-plt.ylabel("ID Usuario", fontsize=12)
+plt.title("Heatmap: Top-3 Películas Recomendadas", fontsize=16)
+plt.xlabel("Película")
+plt.ylabel("Usuario")
+plt.tight_layout()
+plt.show()
+
+
+# 2) Top 20 Productos más Recomendados
+# product_counts = pd.Series([iid for _, ur in top_n.items() for iid, _ in ur]).value_counts().head(20)
+# product_counts.index = product_counts.index.map(product_id_to_name)  # mapear a nombres
+
+# plt.figure(figsize=(14,6))
+# ax = sns.barplot(x=product_counts.index, y=product_counts.values, palette="magma")
+# plt.title("Top 20 Películas más Recomendadas (frecuencia)", fontsize=16)
+# plt.xlabel("Película", fontsize=12)
+# plt.ylabel("Número de Usuarios a los que se les recomendó", fontsize=12)
+# plt.xticks(rotation=45, ha='right')
+
+# # Añadir etiquetas de valor encima de cada barra
+# for p in ax.patches:
+#     height = p.get_height()
+#     ax.annotate(f'{int(height)}', (p.get_x() + p.get_width() / 2., height),
+#                 ha='center', va='bottom', fontsize=10)
+
+# plt.tight_layout()
+# plt.show()
+
+#GRAFICO 6
+# Red de Recomendaciones Usuario–Producto 
+# Para que la red sea legible tomamos una muestra:
+max_users_in_graph = 40   # cantidad de usuarios que quiero
+sample_users = list(top_n.keys())[:max_users_in_graph]
+
+edges = []
+for uid in sample_users:
+    for iid, est in top_n[uid]:
+        # nodos con nombres 
+        user_name = user_id_to_name.get(uid, f"U{uid}")
+        prod_name = product_id_to_name.get(iid, f"P{iid}")
+        edges.append((user_name, prod_name))
+
+G = nx.Graph()
+G.add_edges_from(edges)
+
+plt.figure(figsize=(14, 10))
+plt.title(f"Red de Recomendaciones (muestra {len(sample_users)} usuarios)", fontsize=16)
+
+# Ponemos diferente color/forma a usuarios y productos
+user_nodes = [n for n in G.nodes if n in {user_id_to_name.get(u) for u in sample_users}]
+product_nodes = [n for n in G.nodes if n not in user_nodes]
+
+pos = nx.spring_layout(G, k=0.5, seed=42)  # layout más compacto
+nx.draw_networkx_edges(G, pos, alpha=0.15)
+
+nx.draw_networkx_nodes(G, pos, nodelist=user_nodes, node_color="skyblue", node_size=120, label="Usuarios")
+nx.draw_networkx_nodes(G, pos, nodelist=product_nodes, node_color="salmon", node_size=120, label="Productos")
+
+# Dibujar etiquetas solo para los nodos más importantes 
+# elegir top productos más recomendados y los usuarios muestreados
+top_product_names = rec_df["ProductID"].head(15).map(product_id_to_name).tolist()
+label_nodes = set(top_product_names) | set(list(user_nodes)[:15])  # etiquetas selectivas
+
+labels = {n: n for n in G.nodes if n in label_nodes}
+nx.draw_networkx_labels(G, pos, labels, font_size=8)
+
+plt.legend(scatterpoints=1, loc="upper right")
+plt.axis("off")
 plt.tight_layout()
 plt.show()
