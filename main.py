@@ -40,8 +40,13 @@ df = pd.DataFrame({
     "Timestamp": timestamps
 })
 
+#limpiamos datos incompletos en caso de haberlos
+#asi nos aseguramos que no hayan valores nulos
+#y que los valores que usaremos cumplan con los estandares de calidad
+df_validated = df.dropna(how='any')
+
 #mandamos a crear en un csv la data procesada
-df.to_csv("data/ratings.csv", index=False)
+df_validated.to_csv("data/ratings.csv", index=False)
 
 print("Dataset generado con nombres reales:")
 print(df.head())
