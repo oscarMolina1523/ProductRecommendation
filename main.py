@@ -267,7 +267,7 @@ plt.show()
 #GRAFICO 6
 # Red de Recomendaciones Usuario–Producto 
 # Para que la red sea legible tomamos una muestra:
-max_users_in_graph = 40   # cantidad de usuarios que quiero
+max_users_in_graph = 10   # cantidad de usuarios que quiero
 sample_users = list(top_n.keys())[:max_users_in_graph]
 
 edges = []
